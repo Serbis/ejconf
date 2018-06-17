@@ -2,9 +2,13 @@ package ru.serbis.ejconf
 
 import org.parboiled2.{CharPredicate, Parser, ParserInput, Rule1}
 
+
 /**
   * This class contain configuration language parsing logic. In receive some,
   * string that contain input configuration, and produce AST from it.
+  *
+  * LIB VERSION: 0.001
+  *
   */
 object ConfigParser {
   trait AstNode

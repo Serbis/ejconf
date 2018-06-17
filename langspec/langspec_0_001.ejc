@@ -1,0 +1,20 @@
+NamedObj {
+  integer: 1
+  double: 3.4
+  boolean: true
+  string: "abc\"gef"
+  complexString: ```abc'"\def\`gh```
+  InnerObject: {
+    innerField: 100
+  }
+  array: [
+    1,
+    3.4,
+    true,
+    "abc",
+    ```efg```,
+    {
+      any: 1
+    }
+  ]
+}

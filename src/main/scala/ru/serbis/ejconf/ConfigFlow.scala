@@ -1,5 +1,8 @@
 package ru.serbis.ejconf
 
+/**
+  * LIB VERSION: 0.001
+  */
 object ConfigFlow {
   sealed trait Config {
     /** Configuration graph*/

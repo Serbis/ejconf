@@ -4,6 +4,9 @@ import ConfigApi._
 
 /**
   * This file contains examples of how to use this library
+  *
+  * LIB VERSION: 0.001
+  *
   */
 object Examples {
   /**

@@ -1,15 +1,19 @@
 package ru.serbis.ejconf
 
+import java.io.FileNotFoundException
+
 import org.parboiled2.ParseError
 import ru.serbis.ejconf.ConfigFlow.{Config, EmptyConfig, IntermediateConfig}
 import ConfigParser._
+
 import scala.io.Source
 import scala.util.{Failure, Success}
 
 /**
-  * Write here how to user this library
+  * LIB VERSION: 0.001
   */
 object ConfigApi {
+  import InternalApi._
 
   /**
     * Load specified configuration file. At this operation it will be
@@ -25,14 +29,21 @@ object ConfigApi {
     * @return IntermediateConfig or EmptyConfig if error was occurred
     */
   def loadConfig(path: String): Config = {
-    val inputFile = Source.fromFile(path)
-    val inputSource = inputFile.mkString
-    val result = new ConfigParser(inputSource).InputLine.run()
+    val inputFile = try {
+      Right(Source.fromFile(path))
+    } catch { case e: FileNotFoundException => Left(e.getMessage) }
 
-    result match {
-      case Success(ast) => IntermediateConfig(Some(astToMap(ast.toList)))
-      case Failure(e: ParseError) => EmptyConfig("Expression is not valid: " + e.format(inputSource))
-      case Failure(e) => EmptyConfig("Unexpected error during parsing run: " + e)
+    if (inputFile.isRight) {
+      val inputSource = inputFile.right.get.mkString
+      val result = new ConfigParser(inputSource).InputLine.run()
+
+      result match {
+        case Success(ast) => IntermediateConfig(Some(astToMap(ast.toList)))
+        case Failure(e: ParseError) => EmptyConfig("Expression is not valid: " + e.format(inputSource))
+        case Failure(e) => EmptyConfig("Unexpected error during parsing run: " + e)
+      }
+    } else {
+      EmptyConfig(inputFile.left.get)
     }
   }
 
@@ -71,40 +82,44 @@ object ConfigApi {
     }
   }
 
+
   /**
     * -----------INTERNAL API-------------
     */
 
-  /**
-    * Convert parsed ast to the configuration graph. The latter is an acyclic
-    * graph represents as Map. Each terminal value in this graph represented
-    * as map value (name -> term). Array represented as a map value, where key
-    * is a string mirror for an array index (index -> produce). Object
-    * represented as a map value, where key is an another map (name -> MAP).
-    *
-    *
-    * @param ast input abstract syntax tree
-    * @return configuration graph
-    */
-  private def astToMap(ast: List[AstNode]) = {
-    def rec(tree: Map[String, Any], node: AstNode): Any = {
-      node match {
-        case t: ObjectNode => t.body.foldLeft(Map.empty[String, Any])((a, v) => a + (v._1 -> rec(Map.empty, v._2)))
-        case t: ArrayNode =>
-          t.elems.foldLeft((0, Map.empty[String, Any]))((a, v) => (a._1 + 1, a._2 + (a._1.toString -> rec(Map.empty, v))))._2
-        case t: StringNode =>
-          t.v
-        case t: IntNumberNode =>
-          t.v
-        case t: DoubleNumberNode =>
-          t.v
-        case
-          t: BoolNode => t.v
+  object InternalApi {
+
+    /**
+      * Convert parsed ast to the configuration graph. The latter is an acyclic
+      * graph represents as Map. Each terminal value in this graph represented
+      * as map value (name -> term). Array represented as a map value, where key
+      * is a string mirror for an array index (index -> produce). Object
+      * represented as a map value, where key is an another map (name -> MAP).
+      *
+      *
+      * @param ast input abstract syntax tree
+      * @return configuration graph
+      */
+    def astToMap(ast: List[AstNode]) = {
+      def rec(tree: Map[String, Any], node: AstNode): Any = {
+        node match {
+          case t: ObjectNode => t.body.foldLeft(Map.empty[String, Any])((a, v) => a + (v._1 -> rec(Map.empty, v._2)))
+          case t: ArrayNode =>
+            t.elems.foldLeft((0, Map.empty[String, Any]))((a, v) => (a._1 + 1, a._2 + (a._1.toString -> rec(Map.empty, v))))._2
+          case t: StringNode =>
+            t.v
+          case t: IntNumberNode =>
+            t.v
+          case t: DoubleNumberNode =>
+            t.v
+          case
+            t: BoolNode => t.v
+        }
       }
+
+      ast.foldLeft(Map.empty[String, Any]) ((a, v) => a + (v.asInstanceOf[ObjectNode].name.get -> rec(Map.empty, v)))
     }
 
-    ast.foldLeft(Map.empty[String, Any]) ((a, v) => a + (v.asInstanceOf[ObjectNode].name.get -> rec(Map.empty, v)))
+    def tailOrEmpty[T](list: List[T]): List[T] = if (list.lengthCompare(1) <= 0) List.empty else list.tail
   }
-
-  private def tailOrEmpty[T](list: List[T]): List[T] = if (list.lengthCompare(1) <= 0) List.empty else list.tail
 }
